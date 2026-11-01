@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>HVAC Operation Tracker | IBN SINA PLC</title>
+    <!-- Google Fonts for Typography and Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#102B46">
+</head>
+<body>
+
+    <!-- Navigation -->
+    <nav class="app-nav" id="mainNav">
+        <div class="nav-brand">
+            <span class="material-symbols-outlined brand-icon">air</span>
+            <div class="brand-text">
+                <h1>HVAC Tracker</h1>
+                <p>IBN SINA PLC</p>
+            </div>
+        </div>
+        <div class="nav-links">
+            <button class="nav-item active" data-target="view-dashboard">
+                <span class="material-symbols-outlined">dashboard</span>
+                <span>Dashboard</span>
+            </button>
+            <button class="nav-item" data-target="view-equipment">
+                <span class="material-symbols-outlined">hvac</span>
+                <span>Equipment</span>
+            </button>
+            <button class="nav-item" data-target="view-history">
+                <span class="material-symbols-outlined">history</span>
+                <span>History</span>
+            </button>
+            <button class="nav-item" data-target="view-reports">
+                <span class="material-symbols-outlined">bar_chart</span>
+                <span>Reports</span>
+            </button>
+            <button class="nav-item admin-only hidden" data-target="view-admin">
+                <span class="material-symbols-outlined">admin_panel_settings</span>
+                <span>Admin Panel</span>
+            </button>
+        </div>
+        <div class="nav-footer">
+            <div class="user-info" id="userInfoDisplay">
+                <span class="user-name">Public Viewer</span>
+                <span class="user-role badge-role">Read-Only</span>
+            </div>
+            <button class="btn btn-outline w-100" id="authButton">Login</button>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+        
+        <!-- Header for Mobile -->
+        <header class="mobile-header">
+            <div class="brand">
+                <span class="material-symbols-outlined">air</span>
+                <h2>HVAC Tracker</h2>
+            </div>
+            <div id="connectionStatus" class="connection-status online"></div>
+        </header>
+
+        <!-- VIEW: DASHBOARD -->
+        <section id="view-dashboard" class="view active">
+            <div class="view-header">
+                <h2>System Overview</h2>
+                <p id="lastUpdated" class="subtitle">Real-time status</p>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="dashboard-grid">
+                <div class="stat-card primary">
+                    <div class="stat-icon"><span class="material-symbols-outlined">inventory_2</span></div>
+                    <div class="stat-content">
+                        <h3>Total Equipment</h3>
+                        <h2 id="dash-total">0</h2>
+                    </div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-icon"><span class="material-symbols-outlined">play_circle</span></div>
+                    <div class="stat-content">
+                        <h3>Running</h3>
+                        <h2 id="dash-running">0</h2>
+                    </div>
+                </div>
+                <div class="stat-card danger">
+                    <div class="stat-icon"><span class="material-symbols-outlined">stop_circle</span></div>
+                    <div class="stat-content">
+                        <h3>Stopped</h3>
+                        <h2 id="dash-stopped">0</h2>
+                    </div>
+                </div>
+                <div class="stat-card inactive">
+                    <div class="stat-icon"><span class="material-symbols-outlined">power_off</span></div>
+                    <div class="stat-content">
+                        <h3>Inactive</h3>
+                        <h2 id="dash-inactive">0</h2>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-split">
+                <!-- Building Breakdown -->
+                <div class="card building-summary">
+                    <div class="card-header">
+                        <h3>Building Status</h3>
+                    </div>
+                    <div class="card-body" id="buildingSummaryList">
+                        <div class="empty-state">Loading data...</div>
+                    </div>
+                </div>
+
+                <!-- Recent Activities -->
+                <div class="card recent-activities">
+                    <div class="card-header">
+                        <h3>Recent Activities</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul class="activity-list" id="recentActivitiesList">
+                            <!-- Populated by JS -->
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: EQUIPMENT -->
+        <section id="view-equipment" class="view">
+            <div class="view-header flex-between">
+                <h2>Equipment List</h2>
+                <div class="view-controls">
+                    <button class="btn btn-icon" id="toggleViewBtn" title="Toggle View"><span class="material-symbols-outlined">view_list</span></button>
+                </div>
+            </div>
+
+            <div class="filters-bar">
+                <input type="text" id="searchEq" class="form-control" placeholder="Search ID or Room...">
+                <select id="filterType" class="form-control">
+                    <option value="">All Types</option>
+                    <option value="AHU">AHU</option>
+                    <option value="FAU">FAU</option>
+                    <option value="DHF">DHF</option>
+                </select>
+                <select id="filterStatus" class="form-control">
+                    <option value="">All Status</option>
+                    <option value="RUNNING">Running</option>
+                    <option value="STOPPED">Stopped</option>
+                </select>
+            </div>
+
+            <div id="equipmentContainer" class="equipment-grid card-view">
+                <!-- Populated by JS -->
+            </div>
+        </section>
+
+        <!-- VIEW: DETAILS -->
+        <section id="view-details" class="view">
+            <button class="btn btn-text mb-2" id="backToEqBtn"><span class="material-symbols-outlined">arrow_back</span> Back to List</button>
+            <div class="card details-card">
+                <div class="details-header" id="det-header">
+                    <!-- Populated by JS -->
+                </div>
+                <div class="details-body grid-2-col">
+                    <div class="info-group">
+                        <label>Location</label>
+                        <p id="det-location">-</p>
+                    </div>
+                    <div class="info-group">
+                        <label>Served Rooms</label>
+                        <p id="det-rooms">-</p>
+                    </div>
+                    <div class="info-group">
+                        <label>Last ON Time</label>
+                        <p id="det-on-time">-</p>
+                    </div>
+                    <div class="info-group">
+                        <label>Last OFF Time</label>
+                        <p id="det-off-time">-</p>
+                    </div>
+                    <div class="info-group">
+                        <label>Current Duration</label>
+                        <p id="det-duration" class="live-duration">-</p>
+                    </div>
+                </div>
+                <div class="details-actions auth-actions hidden" id="det-actions">
+                    <!-- Controls injected here based on role -->
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: HISTORY -->
+        <section id="view-history" class="view">
+            <div class="view-header flex-between">
+                <h2>Operation History</h2>
+                <button class="btn btn-outline" id="exportHistoryBtn"><span class="material-symbols-outlined">download</span> Export CSV</button>
+            </div>
+            
+            <div class="filters-bar">
+                <input type="date" id="histStartDate" class="form-control">
+                <input type="date" id="histEndDate" class="form-control">
+                <button class="btn btn-primary" id="loadHistoryBtn">Filter</button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Eq. ID</th>
+                            <th>Type</th>
+                            <th>ON Time</th>
+                            <th>OFF Time</th>
+                            <th>Duration</th>
+                            <th>User</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr><td colspan="8" class="text-center">Select dates and load history</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- VIEW: REPORTS -->
+        <section id="view-reports" class="view">
+            <div class="view-header flex-between">
+                <h2>Reports</h2>
+                <button class="btn btn-outline" id="exportReportBtn"><span class="material-symbols-outlined">download</span> Export</button>
+            </div>
+            <div class="filters-bar">
+                <select id="reportType" class="form-control">
+                    <option value="daily">Daily Summary</option>
+                    <option value="monthly">Monthly Summary</option>
+                </select>
+                <input type="date" id="reportDate" class="form-control">
+                <button class="btn btn-primary" id="generateReportBtn">Generate</button>
+            </div>
+            <div class="card mt-2">
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr id="reportTableHead">
+                                <th>Equipment ID</th>
+                                <th>Total Run Time</th>
+                                <th>Cycle Count</th>
+                            </tr>
+                        </thead>
+                        <tbody id="reportTableBody">
+                            <tr><td colspan="3" class="text-center">Generate report to view data</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- VIEW: ADMIN PANEL -->
+        <section id="view-admin" class="view admin-only">
+            <div class="view-header">
+                <h2>Admin Management</h2>
+            </div>
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="admin-equip">Manage Equipment</button>
+            </div>
+            <div class="tab-content active" id="admin-equip">
+                
+                <!-- Add Single Equipment -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Add New Equipment</h3>
+                    </div>
+                    <div class="card-body">
+                        <form id="addEqForm" class="grid-form">
+                            <div class="form-group">
+                                <label>Equipment ID (Unique)*</label>
+                                <input type="text" id="frmId" class="form-control" required placeholder="e.g. AHU-01">
+                            </div>
+                            <div class="form-group">
+                                <label>Type*</label>
+                                <select id="frmType" class="form-control" required>
+                                    <option value="AHU">AHU</option>
+                                    <option value="FAU">FAU</option>
+                                    <option value="DHF">DHF</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Building*</label>
+                                <input type="text" id="frmBuilding" class="form-control" required placeholder="e.g. OSD Building">
+                            </div>
+                            <div class="form-group">
+                                <label>Floor*</label>
+                                <input type="text" id="frmFloor" class="form-control" required placeholder="e.g. Level 4">
+                            </div>
+                            <div class="form-group">
+                                <label>Location</label>
+                                <input type="text" id="frmLocation" class="form-control" placeholder="e.g. Technical Area">
+                            </div>
+                            <div class="form-group">
+                                <label>Served Rooms (Comma separated)*</label>
+                                <input type="text" id="frmRooms" class="form-control" required placeholder="Room 1, Room 2">
+                            </div>
+                            <div class="form-group w-100">
+                                <button type="submit" class="btn btn-primary" id="saveEqBtn">Save Equipment</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Bulk Import (CSV) -->
+                <div class="card mt-2">
+                    <div class="card-header">
+                        <h3>Bulk Import (CSV)</h3>
+                        <p class="subtitle" style="margin-top: 5px;">Format: Equipment ID, Type, Building, Floor, Location, Served Rooms (separated by |)</p>
+                    </div>
+                    <div class="card-body">
+                        <input type="file" id="csvFileInput" accept=".csv" class="form-control mb-2">
+                        <button id="importCsvBtn" class="btn btn-primary w-100">
+                            <span class="material-symbols-outlined">upload_file</span> Upload & Import
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- VIEW: LOGIN -->
+        <section id="view-login" class="view">
+            <div class="login-container">
+                <div class="card login-card">
+                    <div class="text-center mb-2">
+                        <span class="material-symbols-outlined" style="font-size: 48px; color: var(--navy);">security</span>
+                        <h2>System Access</h2>
+                        <p>Authorized Personnel Only</p>
+                    </div>
+                    <form id="loginForm">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="loginEmail" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Password</label>
+                            <input type="password" id="loginPassword" class="form-control" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100 mt-2" id="loginSubmitBtn">Log In</button>
+                        <p id="loginError" class="text-danger mt-1 text-center" style="display:none;"></p>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Global Modal & Overlay -->
+    <div id="customModal" class="modal-overlay hidden">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Confirm Action</h3>
+                <span class="material-symbols-outlined close-modal">close</span>
+            </div>
+            <div class="modal-body">
+                <p id="modalMessage">Are you sure?</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="modalCancel">Cancel</button>
+                <button class="btn btn-primary" id="modalConfirm">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast hidden">Message</div>
+
+    <!-- Firebase App & SDKs (Modular ES) -->
+    <script type="module" src="script.js"></script>
+    <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js')
+              .then(reg => console.log('Service Worker Registered'))
+              .catch(err => console.log('Service Worker Error', err));
+      });
+    }
+    </script>
+</body>
+</html>
