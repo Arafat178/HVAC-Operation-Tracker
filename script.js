@@ -2,9 +2,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, deleteDoc, query, where, orderBy, limit, serverTimestamp, runTransaction, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-// ==========================================
-// 1. FIREBASE CONFIGURATION
-// ==========================================
 const firebaseConfig = {
   apiKey: "AIzaSyA7Udcwqn6OYfBVnoylKi3w9BIPeMZuySU",
   authDomain: "hvac-e6c58.firebaseapp.com",
@@ -24,22 +21,11 @@ try {
     console.warn("Firebase not fully configured yet. UI will load but data won't sync.");
 }
 
-// ==========================================
-// 2. STATE MANAGEMENT
-// ==========================================
 const state = {
-    user: null,
-    role: 'public', 
-    equipment: [],
-    history: [],
-    unsubEquipment: null,
-    liveTimerInterval: null,
-    selectedEqId: null
+    user: null, role: 'public', equipment: [], history: [],
+    unsubEquipment: null, liveTimerInterval: null, selectedEqId: null
 };
 
-// ==========================================
-// 3. UTILITY FUNCTIONS
-// ==========================================
 const DOM = {
     get: id => document.getElementById(id),
     show: id => { const el = document.getElementById(id); if(el) el.classList.remove('hidden'); },
@@ -51,8 +37,7 @@ function formatTimeDH(timestamp) {
     if (!timestamp) return '-';
     const dateObj = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Asia/Dhaka',
-        year: 'numeric', month: 'short', day: '2-digit',
+        timeZone: 'Asia/Dhaka', year: 'numeric', month: 'short', day: '2-digit',
         hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
     }).format(dateObj);
 }
@@ -68,7 +53,7 @@ function formatDuration(seconds) {
 function showToast(message, type = 'info') {
     const toast = DOM.get('toast');
     toast.textContent = message;
-    toast.style.backgroundColor = type === 'error' ? 'var(--red)' : type === 'success' ? 'var(--green)' : 'var(--dark-navy)';
+    toast.style.backgroundColor = type === 'error' ? 'var(--red)' : type === 'success' ? 'var(--green)' : 'var(--cyan)';
     toast.classList.remove('hidden');
     setTimeout(() => toast.classList.add('hidden'), 3000);
 }
@@ -85,9 +70,6 @@ DOM.get('modalCancel').addEventListener('click', () => { DOM.hide('customModal')
 DOM.get('modalConfirm').addEventListener('click', () => { DOM.hide('customModal'); if(modalResolver) modalResolver(true); });
 document.querySelector('.close-modal').addEventListener('click', () => { DOM.hide('customModal'); if(modalResolver) modalResolver(false); });
 
-// ==========================================
-// 4. NAVIGATION & SPA ROUTING
-// ==========================================
 function switchView(targetId) {
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.nav-item').forEach(btn => {
@@ -107,20 +89,14 @@ document.querySelectorAll('.nav-item').forEach(btn => {
     });
 });
 
-// ==========================================
-// 5. AUTHENTICATION & ROLES
-// ==========================================
 if(auth) {
     onAuthStateChanged(auth, async (user) => {
         state.user = user;
         if (user) {
             try {
                 const docSnap = await getDoc(doc(db, "users", user.uid));
-                if (docSnap.exists()) {
-                    state.role = docSnap.data().role || 'public';
-                } else {
-                    state.role = 'public'; 
-                }
+                if (docSnap.exists()) state.role = docSnap.data().role || 'public';
+                else state.role = 'public'; 
             } catch(e) {
                 console.error("Error fetching role", e);
                 state.role = 'public';
@@ -138,6 +114,7 @@ function updateUIForRole() {
     const isAuth = state.role === 'admin' || state.role === 'operator';
     const isAdmin = state.role === 'admin';
 
+    // Desktop Auth Button
     const authBtn = DOM.get('authButton');
     if (isAuth) {
         authBtn.textContent = 'Logout';
@@ -155,6 +132,20 @@ function updateUIForRole() {
         `;
     }
 
+    // Mobile Auth Icon behavior
+    const mobileAuthIcon = document.getElementById('mobileAuthIcon');
+    if (mobileAuthIcon) {
+        if (isAuth) {
+            mobileAuthIcon.textContent = 'logout';
+            mobileAuthIcon.style.color = 'var(--red)';
+            mobileAuthIcon.style.textShadow = '0 0 10px rgba(255, 51, 102, 0.5)';
+        } else {
+            mobileAuthIcon.textContent = 'account_circle';
+            mobileAuthIcon.style.color = 'var(--cyan)';
+            mobileAuthIcon.style.textShadow = 'var(--cyan-glow)';
+        }
+    }
+
     document.querySelectorAll('.admin-only').forEach(el => {
         if(isAdmin) el.classList.remove('hidden'); else el.classList.add('hidden');
     });
@@ -166,13 +157,18 @@ function updateUIForRole() {
     if(state.selectedEqId) renderDetails(state.selectedEqId);
 }
 
-DOM.get('authButton').addEventListener('click', () => {
+// Click Listeners for Login/Logout (Desktop & Mobile)
+const handleAuthAction = () => {
     if (state.user) {
         signOut(auth).then(() => showToast('Logged out successfully', 'success'));
     } else {
         switchView('view-login');
     }
-});
+};
+
+DOM.get('authButton').addEventListener('click', handleAuthAction);
+const mobileAuthBtn = document.getElementById('mobileAuthBtn');
+if (mobileAuthBtn) mobileAuthBtn.addEventListener('click', handleAuthAction);
 
 DOM.get('loginForm').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -189,9 +185,6 @@ DOM.get('loginForm').addEventListener('submit', (e) => {
         .finally(() => { btn.disabled = false; btn.textContent = 'Log In'; });
 });
 
-// ==========================================
-// 6. FIRESTORE SYNC & DASHBOARD
-// ==========================================
 function startEquipmentListener() {
     if (!db) return;
     const q = query(collection(db, "equipment"), where("active", "==", true));
@@ -202,12 +195,8 @@ function startEquipmentListener() {
         
         updateDashboard();
         
-        if(document.getElementById('view-equipment').classList.contains('active')) {
-            renderEquipmentList();
-        }
-        if(state.selectedEqId && document.getElementById('view-details').classList.contains('active')) {
-            renderDetails(state.selectedEqId);
-        }
+        if(document.getElementById('view-equipment').classList.contains('active')) renderEquipmentList();
+        if(state.selectedEqId && document.getElementById('view-details').classList.contains('active')) renderDetails(state.selectedEqId);
         
         const lastUpd = DOM.get('lastUpdated');
         if(lastUpd) lastUpd.textContent = `Last updated: ${new Date().toLocaleTimeString('en-US', {timeZone: 'Asia/Dhaka'})}`;
@@ -236,14 +225,14 @@ function updateDashboard() {
     DOM.get('dash-inactive').textContent = '0';
 
     const bldgList = DOM.get('buildingSummaryList');
-    bldgList.innerHTML = Object.keys(bldgs).length ? '' : '<div class="empty-state">No equipment mapped</div>';
+    bldgList.innerHTML = Object.keys(bldgs).length ? '' : '<div class="empty-state text-muted">No equipment mapped</div>';
     
     for (const [name, stats] of Object.entries(bldgs)) {
         bldgList.innerHTML += `
-            <div class="building-row">
+            <div class="building-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--card-border);">
                 <div class="b-info">
-                    <h4>${name}</h4>
-                    <p>${stats.running} running / ${stats.total} total</p>
+                    <h4 style="font-size: 0.95rem; margin-bottom: 2px;">${name}</h4>
+                    <p style="font-size: 0.75rem; color: var(--text-muted);">${stats.running} running / ${stats.total} total</p>
                 </div>
                 <div class="b-stats">
                     <span class="badge status-running">${Math.round((stats.running/stats.total)*100)}% ON</span>
@@ -252,9 +241,6 @@ function updateDashboard() {
     }
 }
 
-// ==========================================
-// 7. EQUIPMENT LIST & DETAILS
-// ==========================================
 DOM.get('searchEq').addEventListener('input', renderEquipmentList);
 DOM.get('filterType').addEventListener('change', renderEquipmentList);
 DOM.get('filterStatus').addEventListener('change', renderEquipmentList);
@@ -305,10 +291,9 @@ function renderEquipmentList() {
                         `<button class="btn btn-danger w-100" onclick="event.stopPropagation(); executeOp('${eq.id}', 'STOP')">STOP</button>`}
                 </div>` : ''}
             
-            <!-- ADMIN ONLY DELETE BUTTON -->
             ${(state.role === 'admin') ? 
-                `<div class="mt-1" style="border-top: 1px solid var(--border); padding-top: 10px;">
-                    <button class="btn btn-outline w-100 text-danger" onclick="event.stopPropagation(); deleteEquipment('${eq.id}', '${eq.equipmentId}')">
+                `<div class="mt-1" style="border-top: 1px solid var(--card-border); padding-top: 10px;">
+                    <button class="btn btn-outline w-100 text-danger" style="border-color: var(--red);" onclick="event.stopPropagation(); deleteEquipment('${eq.id}', '${eq.equipmentId}')">
                         <span class="material-symbols-outlined" style="font-size:16px;">delete</span> Delete
                     </button>
                 </div>` : ''}
@@ -358,9 +343,11 @@ function renderDetails(eqId) {
             actDiv.innerHTML = `<button class="btn btn-success w-100" onclick="executeOp('${eq.id}', 'START')"><span class="material-symbols-outlined">power_settings_new</span> START EQUIPMENT</button>`;
             DOM.get('det-duration').textContent = 'Not Running';
             DOM.get('det-duration').style.color = 'var(--text-muted)';
+            DOM.get('det-duration').style.textShadow = 'none';
         } else {
             actDiv.innerHTML = `<button class="btn btn-danger w-100" onclick="executeOp('${eq.id}', 'STOP')"><span class="material-symbols-outlined">stop_circle</span> STOP EQUIPMENT</button>`;
-            DOM.get('det-duration').style.color = 'var(--navy)';
+            DOM.get('det-duration').style.color = 'var(--cyan)';
+            DOM.get('det-duration').style.textShadow = 'var(--cyan-glow)';
             
             if(eq.lastOnTime) {
                 const startTime = eq.lastOnTime.toDate ? eq.lastOnTime.toDate().getTime() : new Date(eq.lastOnTime).getTime();
@@ -378,25 +365,16 @@ function renderDetails(eqId) {
     }
 }
 
-// ==========================================
-// 8. ON / OFF LOGIC (TRANSACTIONS)
-// ==========================================
 window.executeOp = async function(eqId, action) {
     if (!state.user) return;
-    
-    // Find the readable equipment ID for the modal
     const eqData = state.equipment.find(e => e.id === eqId);
     const readableId = eqData ? eqData.equipmentId : eqId;
 
-    const confirm = await showConfirm(
-        `${action} EQUIPMENT`, 
-        `Are you sure you want to ${action} equipment ${readableId}?`
-    );
+    const confirm = await showConfirm(`${action} EQUIPMENT`, `Are you sure you want to ${action} equipment ${readableId}?`);
     if (!confirm) return;
 
     try {
         const eqRef = doc(db, 'equipment', eqId);
-        
         await runTransaction(db, async (transaction) => {
             const eqDoc = await transaction.get(eqRef);
             if (!eqDoc.exists()) throw "Equipment not found";
@@ -405,26 +383,9 @@ window.executeOp = async function(eqId, action) {
             
             if (action === 'START') {
                 if (data.status === 'RUNNING') throw "Equipment is already running.";
-                
                 const logRef = doc(collection(db, 'operationLogs'));
-                
-                transaction.update(eqRef, {
-                    status: 'RUNNING',
-                    lastOnTime: serverTimestamp(),
-                    currentLogId: logRef.id
-                });
-                
-                transaction.set(logRef, {
-                    equipmentId: data.equipmentId,
-                    equipmentType: data.equipmentType,
-                    building: data.building,
-                    floor: data.floor,
-                    startTime: serverTimestamp(),
-                    status: 'RUNNING',
-                    startedBy: state.user.uid,
-                    createdAt: serverTimestamp()
-                });
-
+                transaction.update(eqRef, { status: 'RUNNING', lastOnTime: serverTimestamp(), currentLogId: logRef.id });
+                transaction.set(logRef, { equipmentId: data.equipmentId, equipmentType: data.equipmentType, building: data.building, floor: data.floor, startTime: serverTimestamp(), status: 'RUNNING', startedBy: state.user.uid, createdAt: serverTimestamp() });
             } else if (action === 'STOP') {
                 if (data.status === 'STOPPED') throw "Equipment is already stopped.";
                 if (!data.currentLogId) throw "No active run log found to stop.";
@@ -438,44 +399,26 @@ window.executeOp = async function(eqId, action) {
                     durationSecs = Math.floor((Date.now() - startTs) / 1000);
                 }
 
-                transaction.update(eqRef, {
-                    status: 'STOPPED',
-                    lastOffTime: serverTimestamp(),
-                    currentLogId: null
-                });
-
-                transaction.update(logRef, {
-                    stopTime: serverTimestamp(),
-                    durationSeconds: durationSecs,
-                    status: 'STOPPED',
-                    stoppedBy: state.user.uid
-                });
+                transaction.update(eqRef, { status: 'STOPPED', lastOffTime: serverTimestamp(), currentLogId: null });
+                transaction.update(logRef, { stopTime: serverTimestamp(), durationSeconds: durationSecs, status: 'STOPPED', stoppedBy: state.user.uid });
             }
         });
-
         showToast(`Equipment ${action} successful.`, 'success');
-        
     } catch (err) {
         console.error("Transaction failed: ", err);
         showToast(err.message || err, 'error');
     }
 }
 
-// ==========================================
-// 9. HISTORY & REPORTS
-// ==========================================
 async function loadHistory() {
     if(!db) return;
     const tbody = DOM.get('historyTableBody');
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center">Loading history...</td></tr>';
-    
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">Loading history...</td></tr>';
     try {
         const q = query(collection(db, "operationLogs"), orderBy("createdAt", "desc"), limit(50));
         const snapshot = await getDocs(q);
-        
         state.history = [];
         snapshot.forEach(doc => state.history.push({id: doc.id, ...doc.data()}));
-        
         renderHistory();
     } catch(e) {
         console.error("Error loading history", e);
@@ -485,20 +428,16 @@ async function loadHistory() {
 
 function renderHistory() {
     const tbody = DOM.get('historyTableBody');
-    if(!state.history.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center">No records found</td></tr>';
-        return;
-    }
+    if(!state.history.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted">No records found</td></tr>'; return; }
     
     tbody.innerHTML = '';
     state.history.forEach(log => {
         const badgeCls = log.status === 'RUNNING' ? 'status-running' : 'status-stopped';
         const dateStr = log.startTime ? formatTimeDH(log.startTime).split(',')[0] : '-';
-        
         tbody.innerHTML += `
             <tr>
                 <td>${dateStr}</td>
-                <td><strong>${log.equipmentId}</strong></td>
+                <td><strong style="color: var(--cyan);">${log.equipmentId}</strong></td>
                 <td>${log.equipmentType}</td>
                 <td>${formatTimeDH(log.startTime)}</td>
                 <td>${formatTimeDH(log.stopTime)}</td>
@@ -512,33 +451,23 @@ function renderHistory() {
 
 DOM.get('exportHistoryBtn').addEventListener('click', () => {
     if(!state.history.length) return showToast("No data to export", "error");
-    
-    let csvContent = "data:text/csv;charset=utf-8,";
-    csvContent += "Equipment ID,Type,Building,ON Time,OFF Time,Duration (s),Status\n";
-    
+    let csvContent = "data:text/csv;charset=utf-8,Equipment ID,Type,Building,ON Time,OFF Time,Duration (s),Status\n";
     state.history.forEach(log => {
         const onT = formatTimeDH(log.startTime).replace(/,/g, '');
         const offT = formatTimeDH(log.stopTime).replace(/,/g, '');
         csvContent += `${log.equipmentId},${log.equipmentType},${log.building},${onT},${offT},${log.durationSeconds||0},${log.status}\n`;
     });
-    
-    const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `HVAC_History_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    link.href = encodeURI(csvContent); link.download = `HVAC_History_${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(link); link.click(); link.remove();
 });
 
-// Generate Report logic (Fixed)
 DOM.get('generateReportBtn').addEventListener('click', async () => {
     const dateVal = DOM.val('reportDate');
     if(!dateVal) return showToast("Please select a date first", "error");
 
     const tbody = DOM.get('reportTableBody');
-    tbody.innerHTML = '<tr><td colspan="3" class="text-center">Generating Report...</td></tr>';
-
+    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">Generating Report...</td></tr>';
     if(state.history.length === 0) await loadHistory();
 
     const reportData = {};
@@ -547,169 +476,80 @@ DOM.get('generateReportBtn').addEventListener('click', async () => {
     state.history.forEach(log => {
         if(!log.startTime) return;
         const logDate = log.startTime.toDate ? log.startTime.toDate().toDateString() : new Date(log.startTime).toDateString();
-
         if(logDate === targetDate) {
-            if(!reportData[log.equipmentId]) {
-                reportData[log.equipmentId] = { runs: 0, time: 0 };
-            }
+            if(!reportData[log.equipmentId]) reportData[log.equipmentId] = { runs: 0, time: 0 };
             reportData[log.equipmentId].runs += 1;
             reportData[log.equipmentId].time += (log.durationSeconds || 0);
         }
     });
 
     if(Object.keys(reportData).length === 0) {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">No operation data found for this date</td></tr>';
-        return;
+        tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">No operation data found for this date</td></tr>'; return;
     }
 
     tbody.innerHTML = '';
     for(const [eqId, data] of Object.entries(reportData)) {
-        tbody.innerHTML += `
-            <tr>
-                <td><strong>${eqId}</strong></td>
-                <td>${formatDuration(data.time)}</td>
-                <td>${data.runs} times</td>
-            </tr>
-        `;
+        tbody.innerHTML += `<tr><td><strong style="color: var(--cyan);">${eqId}</strong></td><td>${formatDuration(data.time)}</td><td>${data.runs} times</td></tr>`;
     }
     showToast("Report generated successfully", "success");
 });
 
-// ==========================================
-// 10. ADMIN MANAGEMENT (Single & Bulk Import)
-// ==========================================
 DOM.get('addEqForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     if(state.role !== 'admin') return showToast("Permission denied", "error");
 
-    const btn = DOM.get('saveEqBtn');
-    btn.disabled = true;
-    
+    const btn = DOM.get('saveEqBtn'); btn.disabled = true;
     const eqIdStr = DOM.val('frmId');
     const roomsArr = DOM.val('frmRooms').split(',').map(r => r.trim()).filter(r => r);
     
-    const payload = {
-        equipmentId: eqIdStr,
-        equipmentType: DOM.val('frmType'),
-        building: DOM.val('frmBuilding'),
-        floor: DOM.val('frmFloor'),
-        location: DOM.val('frmLocation'),
-        servedRooms: roomsArr,
-        status: 'STOPPED',
-        active: true,
-        createdAt: serverTimestamp(),
-        lastOnTime: null,
-        lastOffTime: null,
-        currentLogId: null
-    };
+    const payload = { equipmentId: eqIdStr, equipmentType: DOM.val('frmType'), building: DOM.val('frmBuilding'), floor: DOM.val('frmFloor'), location: DOM.val('frmLocation'), servedRooms: roomsArr, status: 'STOPPED', active: true, createdAt: serverTimestamp(), lastOnTime: null, lastOffTime: null, currentLogId: null };
 
     try {
         await setDoc(doc(collection(db, "equipment")), payload);
-        showToast("Equipment added successfully", "success");
-        DOM.get('addEqForm').reset();
-    } catch(err) {
-        showToast("Error adding equipment", "error");
-        console.error(err);
-    } finally {
-        btn.disabled = false;
-    }
+        showToast("Equipment added successfully", "success"); DOM.get('addEqForm').reset();
+    } catch(err) { showToast("Error adding equipment", "error"); console.error(err);
+    } finally { btn.disabled = false; }
 });
 
-// Delete Equipment Function (Admin Only)
 window.deleteEquipment = async function(docId, readableId) {
     const confirm = await showConfirm("DELETE EQUIPMENT", `Are you sure you want to permanently delete ${readableId}?`);
     if(!confirm) return;
-
-    try {
-        await deleteDoc(doc(db, "equipment", docId));
-        showToast(`${readableId} deleted successfully`, "success");
-    } catch(e) {
-        console.error("Delete failed: ", e);
-        showToast("Failed to delete equipment", "error");
-    }
+    try { await deleteDoc(doc(db, "equipment", docId)); showToast(`${readableId} deleted successfully`, "success");
+    } catch(e) { console.error("Delete failed: ", e); showToast("Failed to delete equipment", "error"); }
 };
 
-// Bulk Import from CSV (Admin Only)
 DOM.get('importCsvBtn').addEventListener('click', async () => {
     if(state.role !== 'admin') return showToast("Permission denied", "error");
-
-    const fileInput = DOM.get('csvFileInput');
-    const file = fileInput.files[0];
-    
+    const file = DOM.get('csvFileInput').files[0];
     if(!file) return showToast("Please select a .csv file first", "error");
 
-    const btn = DOM.get('importCsvBtn');
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = 'Importing... Please wait';
+    const btn = DOM.get('importCsvBtn'); const originalText = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = 'Importing... Please wait';
 
     const reader = new FileReader();
-    
     reader.onload = async function(e) {
-        const text = e.target.result;
-        const rows = text.split('\n');
-        let successCount = 0;
-        let errorCount = 0;
-
-        // Skip the Header row (i=1)
+        const rows = e.target.result.split('\n');
+        let successCount = 0, errorCount = 0;
         for(let i = 1; i < rows.length; i++) {
             const row = rows[i].trim();
             if(!row) continue;
-
             const columns = row.split(',');
-            if(columns.length < 4) {
-                errorCount++;
-                continue; 
-            }
-
+            if(columns.length < 4) { errorCount++; continue; }
             const [eqId, type, building, floor, location = '', rooms = ''] = columns;
             const roomsArray = rooms.split(/[|+]/).map(r => r.trim()).filter(r => r);
 
-            const payload = {
-                equipmentId: eqId.trim(),
-                equipmentType: type.trim().toUpperCase(),
-                building: building.trim(),
-                floor: floor.trim(),
-                location: location.trim(),
-                servedRooms: roomsArray,
-                status: 'STOPPED',
-                active: true,
-                createdAt: serverTimestamp(),
-                lastOnTime: null,
-                lastOffTime: null,
-                currentLogId: null
-            };
-
-            try {
-                await setDoc(doc(collection(db, "equipment")), payload);
-                successCount++;
-            } catch(err) {
-                console.error("Failed to import row: ", eqId, err);
-                errorCount++;
-            }
+            const payload = { equipmentId: eqId.trim(), equipmentType: type.trim().toUpperCase(), building: building.trim(), floor: floor.trim(), location: location.trim(), servedRooms: roomsArray, status: 'STOPPED', active: true, createdAt: serverTimestamp(), lastOnTime: null, lastOffTime: null, currentLogId: null };
+            try { await setDoc(doc(collection(db, "equipment")), payload); successCount++;
+            } catch(err) { console.error("Failed to import row: ", eqId, err); errorCount++; }
         }
-
-        fileInput.value = '';
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-        
-        if(successCount > 0) {
-            showToast(`Successfully imported ${successCount} equipments. ${errorCount ? `Failed: ${errorCount}` : ''}`, "success");
-        } else {
-            showToast("Failed to import. Check CSV format.", "error");
-        }
+        DOM.get('csvFileInput').value = ''; btn.disabled = false; btn.innerHTML = originalText;
+        if(successCount > 0) showToast(`Successfully imported ${successCount} equipments. ${errorCount ? `Failed: ${errorCount}` : ''}`, "success");
+        else showToast("Failed to import. Check CSV format.", "error");
     };
-
-    reader.onerror = function() {
-        showToast("Error reading file", "error");
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    };
-
+    reader.onerror = function() { showToast("Error reading file", "error"); btn.disabled = false; btn.innerHTML = originalText; };
     reader.readAsText(file);
 });
 
-// Boot up listeners if Firebase loaded
 if (app) {
     document.addEventListener("DOMContentLoaded", () => {
         startEquipmentListener();
