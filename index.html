@@ -8,11 +8,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#102B46">
+    <meta name="theme-color" content="#080C14">
 </head>
 <body>
 
-    <!-- Navigation -->
+    <!-- Navigation (Desktop) -->
     <nav class="app-nav" id="mainNav">
         <div class="nav-brand">
             <span class="material-symbols-outlined brand-icon">air</span>
@@ -55,13 +55,15 @@
     <!-- Main Content Area -->
     <main class="app-main">
         
-        <!-- Header for Mobile -->
+        <!-- Header for Mobile (With New Login Button) -->
         <header class="mobile-header">
             <div class="brand">
                 <span class="material-symbols-outlined">air</span>
                 <h2>HVAC Tracker</h2>
             </div>
-            <div id="connectionStatus" class="connection-status online"></div>
+            <button class="btn btn-icon" id="mobileAuthBtn" style="border: none; padding: 0; background: transparent;">
+                <span class="material-symbols-outlined" id="mobileAuthIcon" style="font-size: 30px; color: var(--cyan); text-shadow: var(--cyan-glow);">account_circle</span>
+            </button>
         </header>
 
         <!-- VIEW: DASHBOARD -->
@@ -94,8 +96,8 @@
                         <h2 id="dash-stopped">0</h2>
                     </div>
                 </div>
-                <div class="stat-card inactive">
-                    <div class="stat-icon"><span class="material-symbols-outlined">power_off</span></div>
+                <div class="stat-card inactive" style="border-bottom: 3px solid var(--text-muted);">
+                    <div class="stat-icon" style="background: rgba(255,255,255,0.1); color: var(--text-muted);"><span class="material-symbols-outlined">power_off</span></div>
                     <div class="stat-content">
                         <h3>Inactive</h3>
                         <h2 id="dash-inactive">0</h2>
@@ -121,7 +123,7 @@
                     </div>
                     <div class="card-body">
                         <ul class="activity-list" id="recentActivitiesList">
-                            <!-- Populated by JS -->
+                            <li class="text-muted" style="list-style: none;">Live feed not available in this view. Check History.</li>
                         </ul>
                     </div>
                 </div>
@@ -264,7 +266,7 @@
                 <h2>Admin Management</h2>
             </div>
             <div class="tabs">
-                <button class="tab-btn active" data-tab="admin-equip">Manage Equipment</button>
+                <button class="tab-btn active btn btn-primary" data-tab="admin-equip" style="margin-bottom: 15px;">Manage Equipment</button>
             </div>
             <div class="tab-content active" id="admin-equip">
                 
@@ -332,9 +334,9 @@
             <div class="login-container">
                 <div class="card login-card">
                     <div class="text-center mb-2">
-                        <span class="material-symbols-outlined" style="font-size: 48px; color: var(--navy);">security</span>
+                        <span class="material-symbols-outlined" style="font-size: 48px; color: var(--cyan); text-shadow: var(--cyan-glow);">security</span>
                         <h2>System Access</h2>
-                        <p>Authorized Personnel Only</p>
+                        <p class="subtitle">Authorized Personnel Only</p>
                     </div>
                     <form id="loginForm">
                         <div class="form-group">
@@ -346,7 +348,7 @@
                             <input type="password" id="loginPassword" class="form-control" required>
                         </div>
                         <button type="submit" class="btn btn-primary w-100 mt-2" id="loginSubmitBtn">Log In</button>
-                        <p id="loginError" class="text-danger mt-1 text-center" style="display:none;"></p>
+                        <p id="loginError" class="text-danger mt-1 text-center" style="display:none; text-shadow: 0 0 5px rgba(255, 51, 102, 0.4);"></p>
                     </form>
                 </div>
             </div>
@@ -379,7 +381,7 @@
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
           navigator.serviceWorker.register('sw.js')
-              .then(reg => console.log('Service Worker Registered'))
+              .then(reg => console.log('Service Worker Registered Successfully!'))
               .catch(err => console.log('Service Worker Error', err));
       });
     }
